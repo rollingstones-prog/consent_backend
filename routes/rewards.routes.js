@@ -8,35 +8,40 @@ const router = Router();
 
 router.post("/redeem", auth, async (req, res) => {
   try {
+    // find user
     const user = await User.findById(req.user.id);
-    if (!user) return res.status(404).json({ message: "User not found" });
-
-    if (user.points < 200) {
-      return res
-        .status(400)
-        .json({ message: "Not enough points to redeem reward" });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
     }
 
-    // Create payout request with timestamp
+    // check points
+    if (user.points < 200) {
+      return res.status(400).json({ message: "Not enough points to redeem reward" });
+    }
+
+    // create payout request with timestamp
     const payout = await Payout.create({
       user: user._id,
       points: 200,
       amount: 100,
       status: "pending",
-      requestedAt: dayjs().utc().toDate() // ✅ save timestamp
+      requestedAt: dayjs().utc().toDate()   // ✅ timestamp
     });
 
-    // Deduct points from user
+    // deduct points
     user.points -= 200;
     await user.save();
 
+    // response
     res.json({
       message: "Reward request submitted (100 PKR). Status: pending",
       payoutId: payout._id,
       requestedAt: dayjs(payout.requestedAt).format("YYYY-MM-DD HH:mm:ss [UTC]")
     });
-  } catch (e) {
-    res.status(500).json({ message: e.message });
+
+  } catch (err) {
+    console.error("❌ Redeem error:", err);
+    res.status(500).json({ message: "Server error, please try again later" });
   }
 });
 
