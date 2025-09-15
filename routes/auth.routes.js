@@ -1,16 +1,16 @@
-const express = require('express');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const dayjs = require('dayjs');
-const utc = require('dayjs/plugin/utc');
-const tz = require('dayjs/plugin/timezone');
-const User = require('../models/User');
-const Referral = require('../models/Referral');
-const generateReferralCode = require('../utils/generateReferralcode.js');
+import { Router } from 'express';
+import { hash as _hash, compare } from 'bcryptjs';
+import { sign } from 'jsonwebtoken';
+import dayjs, { extend } from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+import tz from 'dayjs/plugin/timezone';
+import User, { findOne, findByIdAndUpdate } from '../models/User';
+import { create } from '../models/Referral';
+import generateReferralCode from '../utils/generateReferralcode.js';
 
-dayjs.extend(utc); dayjs.extend(tz);
+extend(utc); extend(tz);
 
-const router = express.Router();
+const router = Router();
 
 function isNewDay(lastLogin) {
   if (!lastLogin) return true;
@@ -24,15 +24,15 @@ router.post('/signup', async (req, res) => {
     const { name, email, password, referralCode } = req.body;
     if (!name || !email || !password) return res.status(400).json({ message: 'Missing fields' });
 
-    const exists = await User.findOne({ email });
+    const exists = await findOne({ email });
     if (exists) return res.status(400).json({ message: 'Email already registered' });
 
-    const hash = await bcrypt.hash(password, 10);
+    const hash = await _hash(password, 10);
     const newUser = new User({ name, email, password: hash, referralCode: generateReferralCode() });
 
     // referral link
     if (referralCode) {
-      const referrer = await User.findOne({ referralCode });
+      const referrer = await findOne({ referralCode });
       if (referrer) newUser.referredBy = referrer._id;
     }
 
@@ -40,8 +40,8 @@ router.post('/signup', async (req, res) => {
 
     // reward referrer
     if (newUser.referredBy) {
-      await Referral.create({ referrer: newUser.referredBy, referred: newUser._id });
-      await User.findByIdAndUpdate(newUser.referredBy, { $inc: { points: 20 } });
+      await create({ referrer: newUser.referredBy, referred: newUser._id });
+      await findByIdAndUpdate(newUser.referredBy, { $inc: { points: 20 } });
     }
 
     return res.json({ message: 'User registered, please login' });
@@ -54,10 +54,10 @@ router.post('/signup', async (req, res) => {
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-    const user = await User.findOne({ email });
+    const user = await findOne({ email });
     if (!user) return res.status(400).json({ message: 'User not found' });
 
-    const ok = await bcrypt.compare(password, user.password);
+    const ok = await compare(password, user.password);
     if (!ok) return res.status(400).json({ message: 'Wrong credentials' });
 
     // daily login points
@@ -65,7 +65,7 @@ router.post('/login', async (req, res) => {
     user.lastLogin = new Date();
     await user.save();
 
-    const token = jwt.sign({ id: user._id, email: user.email }, process.env.JWT_SECRET, { expiresIn: '12h' });
+    const token = sign({ id: user._id, email: user.email }, process.env.JWT_SECRET, { expiresIn: '12h' });
 
     return res.json({
       token,
@@ -83,4 +83,4 @@ router.post('/login', async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;
