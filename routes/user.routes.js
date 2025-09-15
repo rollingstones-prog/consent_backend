@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { findById } from '../models/User.js';
-import auth from '../middleware/auth';
+import auth from '../middleware/auth.js';
 
 const router = Router();
 
@@ -17,4 +17,5 @@ router.get('/my-referral-link', auth, async (req, res) => {
 });
 
 export default router;
+
 
