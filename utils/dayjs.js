@@ -1,12 +1,8 @@
-// utils/dayjs.js
 import dayjs from "dayjs";
-import utc from "dayjs/plugin/utc.js";
-import timezone from "dayjs/plugin/timezone.js";
+import utc from "dayjs/plugin/utc.js";       // 👈 extension important
+import timezone from "dayjs/plugin/timezone.js"; // 👈 extension important
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
-
-// Default timezone set karna ho to (optional)
-// dayjs.tz.setDefault("Asia/Karachi");
 
 export default dayjs;
